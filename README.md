@@ -86,135 +86,59 @@ I agree with the severity and error of this issue
          
 We will adopt this recommendation to address the issue.
 
-# Issue H-2: Missing checks in 2 places, allows proxy holders to drain the margin account 
+**securitygrid**
 
-Source: https://github.com/sherlock-audit/2023-05-dodo-judging/issues/104 
+Escalate for 10 USDC
+I don't think the Vulnerability Detail of this report is correct. The key to this attack is the parameter. I wouldn't escalate it if it was a simple parameter. This is a complex parameter, especially when you want to steal the erc20 in MarginTrading or repay it and then steal the collateral. To repay for MarginTrading, the most important thing is: in the code of aave pool, msg.sender must be a borrower, that is, the MarginTrading contract itself. For detailed parameter encoding, see #69 and #74.
 
-## Found by 
-0x2e, BAHOZ, J4de, ctf\_sec, curiousapple, jprod15, n33k, pengun, shogoki, simon135
-## Summary
-Missing checks in 2 places, allows proxy holders to drain the margin account.
-
-## Vulnerability Detail
-Dodo defines the proxy role with the following intent 
-
-> Q: Are there any additional protocol roles? If yes, please explain in detail:
-> There is a proxy role that has permissions stored in the ALLOWED_FLASH_LOAN structure. This role can execute opening or closing positions on behalf of the user to achieve stop loss or take profit objectives.
-
-**The intent here is that users allow proxy addresses to act on their behalf, to their benefit.**
-There are checks in multiple places to enforce above, that beneficiary remains margin account only even if action is being executed by proxy.
-
-For example
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L376
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L365
-
-However, there are two places where checks are missed, exposing funds at proxy's mercy :) 
-
-1. `_swapApproveTarget`
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L308-L310
-The proxy holder can pass their own address as `_swapApproveTarget` and get an infinite allowance on user funds.
-
-> Attack: 
-> flag: 1 
-> _swapApproveToken[]: all tokens margin account holds
-> _swapAddress: some dummy contract with fallback
-> tradeAssets: empty
-> withdrawAssets: empty
-
-2. `_swapAddress`
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L312
-This line basically gives complete ad-hoc access to the proxy, using a combination of `_swapAddress` and `_swapParams`, they can basically do anything, eg: transfer tokens, and approve them.....
-
-_Note: This is applicable for both open and close trade_
-
-## Impact
-Loss of user funds
-The trust assumption of DODO considering proxy access is broken.
-
-## Code Snippet
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L308
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L312
-
-## Tool used
-Manual Review
-
-## Recommendation
-Consider validating swap parameters 
+This escalatation is not intended to invalidate this issue. **The purposes are as follows**:
+1. A best report usually comes from a big name. But in fact it is not the best. Should non-best reports appear in the final report?
+2. I am thinking whether the report submitted in the future should be as simple as possible, which saves a lot of time. If a problem leads to an online attack specific to the protocol, I always describe its steps as clearly as possible in the report. However, it seems like this doesn't make sense.
+3. This is also a question that has been confusing everyone, and has not been answered. This is about multiple significant effects caused by the same code. Should separate reports be submitted or should different impacts be merged into one report? Some impacts cause DOS, some cause the core function logic to be destroyed, and the more serious one is the loss of funds.
+4. In the judge contest, many reports may be classified just by looking at the title (this is my guess). Because the number of submissions is huge, it will make the judge too tired. Is the judge's bonus too small?
+5. Are we doing security audit or functional audit? What is sherlock more concerned about?
 
 
 
-## Discussion
+**sherlock-admin**
 
-**Zack995**
+ > Escalate for 10 USDC
+> I don't think the Vulnerability Detail of this report is correct. The key to this attack is the parameter. I wouldn't escalate it if it was a simple parameter. This is a complex parameter, especially when you want to steal the erc20 in MarginTrading or repay it and then steal the collateral. To repay for MarginTrading, the most important thing is: in the code of aave pool, msg.sender must be a borrower, that is, the MarginTrading contract itself. For detailed parameter encoding, see #69 and #74.
+> 
+> This escalatation is not intended to invalidate this issue. **The purposes are as follows**:
+> 1. A best report usually comes from a big name. But in fact it is not the best. Should non-best reports appear in the final report?
+> 2. I am thinking whether the report submitted in the future should be as simple as possible, which saves a lot of time. If a problem leads to an online attack specific to the protocol, I always describe its steps as clearly as possible in the report. However, it seems like this doesn't make sense.
+> 3. This is also a question that has been confusing everyone, and has not been answered. This is about multiple significant effects caused by the same code. Should separate reports be submitted or should different impacts be merged into one report? Some impacts cause DOS, some cause the core function logic to be destroyed, and the more serious one is the loss of funds.
+> 4. In the judge contest, many reports may be classified just by looking at the title (this is my guess). Because the number of submissions is huge, it will make the judge too tired. Is the judge's bonus too small?
+> 5. Are we doing security audit or functional audit? What is sherlock more concerned about?
+> 
+> 
 
-These areas do indeed have the potential for unlimited approval and swap risks. However, currently, the front-end entry point only supports authorization for our robot to execute. The purpose is to authorize the execution of opening and closing positions automatically. Regardless of whether the permissions for unlimited approval and swap are restricted, it is still possible to perform many bold actions, such as depleting assets, large flash loans, and various other behaviors. Therefore, authorization is considered a trusted action.
+You've created a valid escalation for 10 USDC!
 
-**roguereddwarf**
+To remove the escalation from consideration: Delete your comment.
 
-The role of the proxy has been clearly described in the README
-```
-There is a proxy role that has permissions stored in the ALLOWED_FLASH_LOAN structure. This role can execute opening or closing positions on behalf of the user to achieve stop loss or take profit objectives.
-```
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
 
-A user that sets a proxy will give the proxy more privileges than intended.
-The sponsor rightfully pointed out that this issue does not significantly increase the privileges of the proxy since opening and closing trades is inherently a sensitive operation and the proxy is trusted by the user.
-Still this increases the privileges of the proxy and can hence be considered a valid issue.
+**ctf-sec**
 
-# Issue M-1: MarginTradingFactory.sol: User can steal ETH that is stuck in contract that should be rescued by the owner 
+The escalation aims to seek clarity, which is very important, recommend composing a thoughtful response on sherlock end and accept the escalation no matter what the response is!
 
-Source: https://github.com/sherlock-audit/2023-05-dodo-judging/issues/24 
+**hrishibhat**
 
-## Found by 
-0xHati, BAHOZ, BowTiedOriole, evilakela, jprod15, nobody2018, roguereddwarf, rvierdiiev, simon135, smiling\_heretic
-## Summary
-The `MarginTradingFactory` contract handles ETH when users deposit it into their `MarginTrading` contracts.
-Due to the fact that wrong user input can cause ETH to be stuck in the contract, there is a `cleanETH` function that allows the owner to rescue the stuck ETH and refund it to the user that lost it:
+Result:
+High
+Has duplicates
+The questions raised on the escalations are not relevant here and will be considered and addressed separately
 
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L225-L229
+**sherlock-admin**
 
-The issue is that an attacker can abuse the `multicall` function to steal this ETH.
+Escalations have been resolved successfully!
 
-## Vulnerability Detail
-Assume there is 1 ETH in the `MarginTradingFactory` contract.
+Escalation status:
+- [securitygrid](https://github.com/sherlock-audit/2023-05-dodo-judging/issues/34/#issuecomment-1565168341): rejected
 
-The attacker can do the following:
-1. Call `MarginTradingFactory.multicall` with two calls to `depositMarginTradingETH` and send along 1 ETH.
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L74-L87
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L203-L211
-
-2. Both calls to `depositMarginTradingETH` are performed with `msg.value` and since there are now 1 ETH + 1 ETH = 2 ETH in the contract, both calls succeed, leaving 0 ETH in the contract. Thereby the attacker has stolen the 1 ETH which only the owner should be able to rescue
-
-## Impact
-Note: This issue is not about the fact that a wrong user input can lead to a loss of their funds (which is not a valid issue).
-
-Instead, due to this issue an attacker can steal the ETH from the `MarginTradingFactory` contract that should only be accessible to the owner of the contract.
-
-## Code Snippet
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L225-L229
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L74-L87
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L203-L211
-
-## Tool used
-Manual Review
-
-## Recommendation
-Removing the `multicall` function is the easiest remedation.
-Alternatively perform additional accounting to ensure that only `msg.value` is spent.
-Or check that there is only one call to `depositMarginTradingETH` in the `multicall` but keep in mind that there might be nested multicalls.
-
-
-
-## Discussion
-
-**Zack995**
-
-The user mistakenly deposited this amount of money into MarginTradingFactory, and the owner did not incur any losses. Therefore, the severity of the issue is not high. To prevent this operation in the future, the receive() method will be removed.
-
-# Issue M-2: MarginTrading.sol: The whole balance and not just the traded funds are deposited into Aave when a trade is opened 
+# Issue M-1: MarginTrading.sol: The whole balance and not just the traded funds are deposited into Aave when a trade is opened 
 
 Source: https://github.com/sherlock-audit/2023-05-dodo-judging/issues/72 
 
@@ -311,354 +235,38 @@ In terms of product design, users do not have a separate concept of balance. How
 Based on the smart contract logic there is clearly the notion of balance that is not intended to be used as collateral (but e.g. used to repay a loan).
 If this notion of a separate balance is not exposed on the front-end this is not a sufficient mitigation of the issue since the issue is clearly present in the smart contract.
 
-# Issue M-3: MarginTrading.sol: When partially closing a trade all tokens are used to pay back debt and not only the swapped tokens 
+**securitygrid**
 
-Source: https://github.com/sherlock-audit/2023-05-dodo-judging/issues/80 
+Escalate for 10 USDC
+This is valid low/info as stated by the sponsor. No bad impact.
 
-## Found by 
-roguereddwarf
-## Summary
-It's expected by the protocol that funds can be in the `MarginTrading` contract without being used for anything.
+**sherlock-admin**
 
-We can see this by looking at the `MarginTradingFactory.depositMarginTradingETH` and `MarginTradingFactory.depositMarginTradingERC20` functions.
+ > Escalate for 10 USDC
+> This is valid low/info as stated by the sponsor. No bad impact.
 
-If the user sets `margin=false` as the parameter, the funds are only sent to the `MarginTrading` contract but NOT deposited into Aave.
+You've created a valid escalation for 10 USDC!
 
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L203-L211
+To remove the escalation from consideration: Delete your comment.
 
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L259-L272
-
-The purpose of this is that the user can then call `lendingPoolDeposit` or `lendingPoolRepay` to add margin or close a trade.
-
-When a trade is partially closed by taking out a flash loan and swapping it for the debt token all the funds are used to pay back debt but it should be restricted to the funds that were swapped.
-
-## Vulnerability Detail
-When partially closing a trade (`flag=0`) the `MarginTrading._closetrade` function is called and `_tradeAmounts` is set like this:
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L320-L323
-
-So it's set to the full balance, and this amount is then used to repay the debt:
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L325-L327
-
-So this does not leave those funds idle that were in the contract before.
-
-## Impact
-When partially closing a trade the amount that is repaid can be bigger than expected. So the funds that should remain in the contract for other purposes are used up and cannot be used otherwise.
-
-Also since more debt is repaid than intended the trade is altered in an unintended way and will now be liquidated at a different price which is not what the user wants.
-
-## Code Snippet
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L203-L211
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L259-L272
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L294-L356
-
-## Tool used
-Manual Review
-
-## Recommendation
-Only use swapped funds to partially repay debt.
-
-```diff
-diff --git a/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol b/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol
-index f68c1f3..29176f9 100644
---- a/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol
-+++ b/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol
-@@ -318,8 +318,14 @@ contract MarginTrading is OwnableUpgradeable, IMarginTrading, IFlashLoanReceiver
-                 _tradeAmounts[i] = (IERC20(_debtTokens[i]).balanceOf(address(this)));
-             }
-         } else {
-+            int256[] memory _amountsBefore = new uint256[](_tradeAssets.length);
-             for (uint256 i = 0; i < _tradeAssets.length; i++) {
--                _tradeAmounts[i] = (IERC20(_tradeAssets[i]).balanceOf(address(this)));
-+                _amountsBefore[i] = IERC20(_tradeAssets[i]).balanceOf(address(this));
-+            }
-+            for (uint256 i = 0; i < _tradeAssets.length; i++) {
-+                if (_tradeAmounts[i] > IERC20(_tradeAssets[i]).balanceOf(address(this))) {
-+                    _tradeAmounts[i] = (IERC20(_tradeAssets[i]).balanceOf(address(this))) - _amountsBefore[i];
-+                }
-             }
-         }
-         for (uint256 i = 0; i < _tradeAssets.length; i++) {
-```
-
-
-
-## Discussion
-
-**Zack995**
-
-In terms of product design, users do not have a separate concept of balance. However, the contract is designed to be more flexible and allows for balances to be maintained. Users will not perceive or interact with balances in terms of user experience or operations.
-
-**roguereddwarf**
-
-Based on the smart contract logic there is clearly the notion of balance that is not intended to be used as collateral (but e.g. used to repay a loan).
-If this notion of a separate balance is not exposed on the front-end this is not a sufficient mitigation of the issue since the issue is clearly present in the smart contract.
-
-# Issue M-4: `createMarginTrading` of MarginTradingFactory wont work on actual mainnet 
-
-Source: https://github.com/sherlock-audit/2023-05-dodo-judging/issues/103 
-
-## Found by 
-curiousapple, roguereddwarf
-## Summary
-As stated here 
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L107
-Dodo defines `createMarginTrading()` to allow users to create a margin trading account, deposit funds, and open a position.
-However incorrect implementation of it won't allow the user to do so, **once it's deployed on the actual mainnet.** 
-
-## Vulnerability Detail
-There are three steps in `createMarginTrading()`.
-**Step 1: Clone** :heavy_check_mark: 
-**Step 2:  Deposit** :warning: 
-Here if we look closely, dodo is always passing margin boolean as false for both types of deposits, hence these tokens are only transferred to the actual account, and `lendingPoolDeposit` is never done.
-Hence there is no collateral in the name of the margin account in the lending pool yet.
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L144-L148
-
-**Step 3: Open Trade** :negative_squared_cross_mark: 
-The user passes rate mode as 1 or 2 in hopes of opening a position and incurring a debt.
-However, since there is no collateral to borrow against, it would revert to Aave's side.
-Stopping users from creating margin accounts.
-
-The complete trace on aave's side is as per follows 
-1. Flashloan (mode = 1,2)
-https://github.com/aave/protocol-v2/blob/ce53c4a8c8620125063168620eba0a8a92854eb8/contracts/protocol/lendingpool/LendingPool.sol#L483
-2. _executeBorrow
-https://github.com/aave/protocol-v2/blob/ce53c4a8c8620125063168620eba0a8a92854eb8/contracts/protocol/lendingpool/LendingPool.sol#L540-L542
-3. ValidationLogic.validateBorrow
-https://github.com/aave/protocol-v2/blob/ce53c4a8c8620125063168620eba0a8a92854eb8/contracts/protocol/lendingpool/LendingPool.sol#L866
-4. REVERT
-https://github.com/aave/protocol-v2/blob/ce53c4a8c8620125063168620eba0a8a92854eb8/contracts/protocol/libraries/logic/ValidationLogic.sol#L168
-`require(vars.userCollateralBalanceETH > 0, Errors.VL_COLLATERAL_BALANCE_IS_0);`
-
-Whats interesting about this issue is, DODO do have a test to test this functionality, and expect it to work.
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/test/marginTrading/MarginTradingFactory.t.sol#L35
-However this issue is missed in testing, since they are using mocked lending pool without verifcations on collateral.
-
-## Impact
-1. Breaks project assumptions.
-Protocol mentions it clearly that they would like users to create, deposit, and open trade using the concerned function, but due to this issue, users can not. 
-They have even written a test to confirm it but missed the validations in mocked setup.
-
-2. Users being unaware would waste a significant amount of gas in failed calls to createMarginTrading()
-
-## Code Snippet
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L115
-
-## Tool used
-
-Manual Review
-
-## Recommendation
-Consider passing margin boolean as true, so there is collateral to borrow against.
-Also, consider adding forking mainnet to your test suite
-
-
-
-## Discussion
-
-**Zack995**
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L273
-The margin is stored on the balance of the marginTrading contract and will be deposited together with the swap into Aave to serve as collateral, achieving a successful position opening.
-
-**roguereddwarf**
-
-Based on the smart contract there is clearly the intention of opening a position when `createMarginTrading` is called. Since the flag is set to "false" the position is not opened which does not expose the user to price action as he intends to.
-This can therefore be considered a valid Medium in spite of the sponsor's comment.
-
-# Issue M-5: MarginTrading.sol: Attacker can manipulate DODO trading pairs such that margin trades cannot be closed 
-
-Source: https://github.com/sherlock-audit/2023-05-dodo-judging/issues/138 
-
-## Found by 
-roguereddwarf, theOwl
-## Summary
-The DODO Margin Trading protocol integrates with the core DODO protocol to perform swaps.
-Swaps are needed to open and close margin trades.
-
-The intended tokens to be used are the following:
-![2023-05-12_13-24](https://github.com/sherlock-audit/2023-05-dodo-roguereddwarf/assets/118631472/56e4dd9f-1fb6-4d34-948e-c14b33aa856b)
-
-The issue is that these swap pairs are not liquid. Some of them have a TVL of 0:
-https://info.dodoex.io/all
-![2023-05-12_13-26](https://github.com/sherlock-audit/2023-05-dodo-roguereddwarf/assets/118631472/3d1c52ab-d3b6-4b46-8af2-dd8e68f29a01)
-
-One might think that this is an issue due to potential slippage. This is true but it's not the main concern here. The user can specify a minimum output amount for the DODO swap.
-
-However there is another issue related to this.
-
-## Vulnerability Detail
-An attacker might provide liquidity to an illiquid swap pair such that users can open margin trading positions:
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L257-L279
-
-When the attacker then withdraws his liquidity the users cannot close their margin trading positions anymore since closing a trade does also require a swap:
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L294-L356
-
-## Impact
-The slippage is one concern. The bigger concern is that the attacker can manipulate swap pairs such that margin trades cannot be closed anymore and users incur losses in their trades without being able to close them.
-
-## Code Snippet
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L257-L279
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L294-L356
-
-## Tool used
-Manual Review
-
-## Recommendation
-Only allow those margin trades to be opened such that the corresponding swap pairs have sufficient liquidity. Sufficient liquidity means that the swap pair cannot be manipulated by an attacker.
-
-
-
-## Discussion
-
-**Zack995**
-
-Aave supports only mainstream tokens, and the frontend trading pairs for opening positions are controlled by the backend. Additionally, our swap router has price protection, which prevents opening positions for trading pairs with insufficient liquidity. Therefore, it is not possible to open positions with long-tail tokens. If users manage to bypass the DODO platform and attempt to open positions with such tokens, it would be their own responsibility and action.
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
 
 **ctf-sec**
 
-the link is broken in the original report, just want to help add the image attached by the senior watson
+can consider #80 duplicate of this one
 
-![image](https://github.com/sherlock-audit/2023-05-dodo-judging/assets/114844362/48175216-aa8b-4db7-955f-33757dbf5662)
+**hrishibhat**
 
-
-**roguereddwarf**
-
-This issue is considered valid in spite of the sponsors comment since front-end restrictions are not considered a sufficient mitigation for the issue in the smart contract.
-
-In the contest README the supported tokens were listed (including among others WMATIC and WETH).
-Clearly some of the Trading Pairs allow for the described attack because of insufficient liquidity and a user interacting with the smart contracts with the intended tokens can encounter this issue.
-
-# Issue M-6: `MarginTrading.sol` can't be upgradable. 
-
-Source: https://github.com/sherlock-audit/2023-05-dodo-judging/issues/152 
-
-## Found by 
-GimelSec
-## Summary
-
-`MarginTradingFactory` uses `Clones.cloneDeterministic` to create a new `MarginTrading` contract. However, `MarginTrading` seems to be an upgradeable contract.  But `Clone` is not compatible with upgradeable contracts. 
-
-https://docs.openzeppelin.com/contracts/3.x/api/proxy
-> The Clones library provides a way to deploy minimal non-upgradeable proxies for cheap. This can be useful for applications that require deploying many instances of the same contract (for example one per user, or one per task). These instances are designed to be both cheap to deploy, and cheap to call. The drawback being that they are not upgradeable.
-
-## Vulnerability Detail
-
-`MarginTradingFactory` uses `Clones.cloneDeterministic` to create a new `MarginTrading`.
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L121
-```solidity
-    function createMarginTrading(
-        uint8 _flag,
-        bytes calldata depositParams,
-        bytes calldata executeParams
-    ) external payable returns (address marginTrading) {
-        if (_flag == 1) {
-            marginTrading = Clones.cloneDeterministic(
-                MARGIN_TRADING_TEMPLATE,
-                keccak256(abi.encodePacked(msg.sender, crossMarginTrading[msg.sender].length, _flag))
-            );
-            …
-    }
-```
-
-And `MarginTrading` seems to be an upgradeable contract.
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L19
-```solidity
-contract MarginTrading is OwnableUpgradeable, IMarginTrading, IFlashLoanReceiver {
-```
+Result:
+Medium
+Has duplicates
+Considering this issue as valid medium based on the above comments from smart contract perspective and enforcing in the front end is not a mitigation as mentioned above. 
 
 
-The answer in this post explains why `Clone` is not compatible with upgradeable contracts. https://forum.openzeppelin.com/t/contract-factory-for-upgradeable-erc721/11153
-> The problem is that the implementation address for the transparent proxy is kept in the storage of the transparent proxy, but when the user goes through the clone it will be using the storage of the clone, so it doesn’t know where to delegate.
+**sherlock-admin**
 
+Escalations have been resolved successfully!
 
-
-## Impact
-
-If MARGIN_TRADING_TEMPLATE is an upgradeable contract, `Clones.cloneDeterministic` only returns the address of the transparent proxy without the actual implementation.
-
-## Code Snippet
-
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L121
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTradingFactory.sol#L129
-https://github.com/sherlock-audit/2023-05-dodo/blob/main/dodo-margin-trading-contracts/contracts/marginTrading/MarginTrading.sol#L19
-
-
-## Tool used
-
-Manual Review
-
-## Recommendation
-
-Don’t use an upgradeable contract as the implement address in `Clone`. If DODO want a upgradeability mechanism for `MarginTrading`, consider using [Beacon](https://docs.openzeppelin.com/contracts/3.x/api/proxy#beacon)
-
-
-
-## Discussion
-
-**Zack995**
-
-The purpose of adding the OwnableUpgradeable contract was to facilitate the initialization of the owner through the init method in the future. However, this has caused some confusion. We are now planning to replace it with our own custom InitializableOwnable contract. Here is the code:
-```solidity
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.15;
-
-/**
- * @title Ownable
- * @author DODO Breeder
- * @notice Ownership related functions
- */
-contract InitializableOwnable {
-    address public _OWNER_;
-    address public _NEW_OWNER_;
-    bool internal _INITIALIZED_;
-
-    // ============ Events ============
-
-    event OwnershipTransferPrepared(address indexed previousOwner, address indexed newOwner);
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    // ============ Modifiers ============
-
-    modifier notInitialized() {
-        require(!_INITIALIZED_, "DODO_INITIALIZED");
-        _;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == _OWNER_, "NOT_OWNER");
-        _;
-    }
-
-    // ============ Functions ============
-
-    function initOwner(address newOwner) public notInitialized {
-        _INITIALIZED_ = true;
-        _OWNER_ = newOwner;
-    }
-
-    function transferOwnership(address newOwner) public onlyOwner {
-        emit OwnershipTransferPrepared(_OWNER_, newOwner);
-        _NEW_OWNER_ = newOwner;
-    }
-
-    function claimOwnership() public {
-        require(msg.sender == _NEW_OWNER_, "INVALID_CLAIM");
-        emit OwnershipTransferred(_OWNER_, _NEW_OWNER_);
-        _OWNER_ = _NEW_OWNER_;
-        _NEW_OWNER_ = address(0);
-    }
-}
-```
-
-**roguereddwarf**
-
-The sponsor is correct that when there is no Proxy used and the initializable contract is only used in order to have the functionality to initialize the owner, there is no issue.
-
-However the Watson pointed to a valid issue under the assumption that a Proxy will be used. Since the additional information provided by the sponsor was not available at the time of the contest, this issue can be considered valid.
+Escalation status:
+- [securitygrid](https://github.com/sherlock-audit/2023-05-dodo-judging/issues/72/#issuecomment-1565183119): rejected
 
