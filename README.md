@@ -14,7 +14,8 @@ However this is not true. A flash loan can be initiated for any `receiverAddress
 This is actually a known mistake that devs make and the aave docs warn about this (although admittedly the warning is not very clear):
 https://docs.aave.com/developers/v/2.0/guides/flash-loans
 
-![2023-05-11_12-43](https://github.com/sherlock-audit/2023-05-dodo-roguereddwarf/assets/118631472/1bc59eb4-407b-4b5f-a38b-9c415932caf1)
+![2023-05-11_12-43](https://github.com/sherlock-audit/2023-05-dodo-judging/assets/1048185/904c0ca7-500c-436d-969e-c3a4639887ef)
+
 
 So an attacker can execute a flash loan with the `MarginTrading` contract as `receiverAddress`. Also the funds that are needed to pay back the flash loan are pulled from the `receiverAddress` and NOT from the `initiator`:
 
@@ -137,6 +138,17 @@ Escalations have been resolved successfully!
 
 Escalation status:
 - [securitygrid](https://github.com/sherlock-audit/2023-05-dodo-judging/issues/34/#issuecomment-1565168341): rejected
+
+**Attens1423**
+
+fix pr:https://github.com/DODOEX/dodo-margin-trading-contracts/pull/1
+
+**roguereddwarf**
+
+Mitigation Review:
+The root cause of this issue was a missing check that only a flash loan initiated by the `MarginTrading` contract can call the `MarginTrading.executeOperation` function.
+
+The fix recommended by the Watson has been implemented and the issue is now fixed.
 
 # Issue M-1: MarginTrading.sol: The whole balance and not just the traded funds are deposited into Aave when a trade is opened 
 
@@ -269,4 +281,17 @@ Escalations have been resolved successfully!
 
 Escalation status:
 - [securitygrid](https://github.com/sherlock-audit/2023-05-dodo-judging/issues/72/#issuecomment-1565183119): rejected
+
+**Attens1423**
+
+In fact we need tokens are deposited in aave. We suppose users use frontend to operate their assets and frontend will ensure all assets will be deposited in aave. If there are tokens left, users could deposit them in aave by themselves. So we think this design is not a problem.
+
+**MLON33**
+
+Interpreting sponsor's comment as "Won't Fix."
+
+**roguereddwarf**
+
+Mitigation Review:
+While Sherlock considers this a valid "Medium", the sponsor decided that there is no need to implement a fix.
 
